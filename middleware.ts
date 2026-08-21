@@ -8,8 +8,9 @@ export const config = {
 
 export async function middleware(request: NextRequest) {
   const token = await getToken({ req: request });
+  // extract url from the current request
   const url = request.nextUrl;
-
+  // for getting the pathname you should use - url.pathname
   // Redirect to dashboard if the user is already authenticated
   // and trying to access sign-in, sign-up, or home page
   if (
@@ -20,6 +21,7 @@ export async function middleware(request: NextRequest) {
       url.pathname === '/')
   ) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
+    // means request.url -- http://localhost:3000/sign-in --- this will become -- http://localhost:3000/dashboard
   }
 
   if (!token && url.pathname.startsWith('/dashboard')) {
@@ -27,4 +29,5 @@ export async function middleware(request: NextRequest) {
   }
 
   return NextResponse.next();
+  // this means no redirection needed proceed with requested url
 }
