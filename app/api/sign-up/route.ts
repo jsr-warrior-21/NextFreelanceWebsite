@@ -8,37 +8,48 @@ export async function POST(request: Request) {
     await dbConnect();
     const { username, email, password } = await request.json();
 
-    const userExistringByUsername = await UserModel.findOne({
-      username,
-      isVerified: true,
-    });
-    if (userExistringByUsername) {
-      return Response.json(
-        {
-          success: false,
-          message: "User with this username already exist.",
-        },
-        {
-          status: 400,
-        },
-      );
+    // 1. Check for ANY user with this username (verified or unverified)
+    const existingUserByUsername = await UserModel.findOne({ username });
+    
+    if (existingUserByUsername) {
+      // If the username exists and is verified, reject it immediately
+      if (existingUserByUsername.isVerified) {
+        return Response.json(
+          { success: false, message: "Username is already taken." },
+          { status: 400 }
+        );
+      } else {
+        // If the username exists but is UNVERIFIED, check if it belongs to a different email
+        if (existingUserByUsername.email !== email) {
+          return Response.json(
+            { success: false, message: "Username is taken by an unverified account. Try another." },
+            { status: 400 }
+          );
+        }
+        // If it's the SAME email and username, we can let them update/continue below
+      }
     }
+
     const existingUserByEmail = await UserModel.findOne({ email });
     const verifyCode = Math.floor(100000 + Math.random() * 900000).toString();
+
     if (existingUserByEmail) {
       if (existingUserByEmail.isVerified) {
         return Response.json(
-          { success: false, message: "User already Exist." },
+          { success: false, message: "User already exists with this email." },
           { status: 400 },
         );
       } else {
+        // User exists with this email but isn't verified -> Update their code/password
         const hashedPassword = await bcrypt.hash(password, 10);
+        existingUserByEmail.username = username; // Update username if they changed it
         existingUserByEmail.password = hashedPassword;
         existingUserByEmail.verifyCode = verifyCode;
-        existingUserByEmail.verifyCodeExpiry = new Date(Date.now() + 360000);
+        existingUserByEmail.verifyCodeExpiry = new Date(Date.now() + 3600000); // 1 hour (fixed typo from 360000)
         await existingUserByEmail.save();
       }
     } else {
+      // Completely new user account creation
       const hashedPassword = await bcrypt.hash(password, 10);
       const expiryDate = new Date();
       expiryDate.setHours(expiryDate.getHours() + 1);
@@ -56,14 +67,16 @@ export async function POST(request: Request) {
       await newUser.save();
     }
 
+    // Send verification email execution block
     const emailResponse = await sendVerificationEmail(
       username,
       email,
       verifyCode,
     );
+    
     if (!emailResponse.success) {
       return Response.json(
-        { success: false, message: "Error in sending email to user." },
+        { success: false, message: "Error sending verification email." },
         { status: 500 },
       );
     }
@@ -71,22 +84,18 @@ export async function POST(request: Request) {
     return Response.json(
       {
         success: true,
-        message: "Verification Email send to the User.",
+        message: "Verification email sent successfully.",
       },
-      {
-        status: 201,
-      },
+      { status: 201 },
     );
   } catch (error) {
-    console.log(error);
+    console.error("Signup validation route failure:", error);
     return Response.json(
       {
         success: false,
-        message: "Error  while registering user",
+        message: "An internal error occurred while registering the user.",
       },
-      {
-        status: 500,
-      },
+      { status: 500 },
     );
   }
 }
