@@ -1,13 +1,15 @@
 # 📬 Mystery Message — Anonymous Messaging Platform
 
+[![Live Demo](https://img.shields.io/badge/Live_Demo-vercel.app-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://next-freelance-website.vercel.app/)
 [![Next.js](https://img.shields.io/badge/Next.js-16.3-black?logo=next.js)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19.0-61DAFB?logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.0-38B2AC?logo=tailwind-css)](https://tailwindcss.com/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose-47A248?logo=mongodb)](https://www.mongodb.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A full-stack, modern anonymous social messaging web application built with **Next.js 16 (App Router)**, **React 19**, **TypeScript**, **MongoDB**, **NextAuth.js**, **Resend Email API**, and **Vercel AI SDK (Groq Llama 3.1)**.
+
+🌐 **Live Application Link**: [https://next-freelance-website.vercel.app](https://next-freelance-website.vercel.app/)
 
 ---
 
@@ -130,12 +132,8 @@ NextFreelanceWebsite/
 
 ## 🌐 Deployment
 
-The easiest way to deploy this application is on **Vercel**:
-
-1. Push your repository to **GitHub**.
-2. Go to **[Vercel](https://vercel.com/)** and click **Import Project**.
-3. Add your Environment Variables (`MONGODB_URI`, `NEXTAUTH_SECRET`, `RESEND_EMAIL_API`, `GROQ_API_KEY`).
-4. Click **Deploy**!
+The live app is deployed on **Vercel** at:
+👉 **[https://next-freelance-website.vercel.app](https://next-freelance-website.vercel.app/)**
 
 ---
 
