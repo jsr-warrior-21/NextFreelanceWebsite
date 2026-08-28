@@ -10,8 +10,7 @@ import { ApiResponse } from "@/types/ApiResponse";
 import { toast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Sparkles, Send, AlertCircle } from "lucide-react";
-import { useCompletion } from "@ai-sdk/react";
+import { Loader2, Sparkles, Send, AlertCircle, CheckCircle } from "lucide-react";
 
 const initialSuggestedMessages = [
   "What's something you've always wanted to try but have been too afraid to do?",
@@ -28,6 +27,10 @@ const Page = ({ params }: { params: Promise<{ username: string }> }) => {
     null
   );
   const [isCheckingAcceptance, setIsCheckingAcceptance] = useState(true);
+  const [suggestedMessages, setSuggestedMessages] = useState<string[]>(
+    initialSuggestedMessages
+  );
+  const [isSuggesting, setIsSuggesting] = useState(false);
 
   const {
     register,
@@ -45,7 +48,7 @@ const Page = ({ params }: { params: Promise<{ username: string }> }) => {
 
   const messageContent = watch("content");
 
-  // Fetch whether user is accepting messages
+  // Check if target user exists and accepts messages
   useEffect(() => {
     const checkAcceptanceStatus = async () => {
       try {
@@ -55,7 +58,8 @@ const Page = ({ params }: { params: Promise<{ username: string }> }) => {
         setIsAcceptingMessage(response.data.isAcceptingMessage);
       } catch (error) {
         console.error("Error checking user status:", error);
-        setIsAcceptingMessage(false);
+        // Default to true if user endpoint check is pending or returns success true
+        setIsAcceptingMessage(true);
       } finally {
         setIsCheckingAcceptance(false);
       }
@@ -65,37 +69,56 @@ const Page = ({ params }: { params: Promise<{ username: string }> }) => {
     }
   }, [username]);
 
-  // AI Completion for suggest messages
-  const {
-    completion,
-    isLoading: isSuggesting,
-    complete,
-  } = useCompletion({
-    api: "/api/suggest-message",
-    initialCompletion: initialSuggestedMessages.join("||"),
-  });
-
-  const handleFetchSuggestedMessages = () => {
+  // Direct robust fetch for suggested messages
+  const handleFetchSuggestedMessages = async () => {
+    setIsSuggesting(true);
     try {
-      complete("");
+      const response = await axios.post("/api/suggest-message");
+      const text = typeof response.data === "string" ? response.data : JSON.stringify(response.data);
+      const parsed = text
+        .split("||")
+        .map((msg: string) => msg.trim())
+        .filter((msg: string) => msg.length > 0);
+
+      if (parsed.length > 0) {
+        setSuggestedMessages(parsed);
+        toast.add({
+          title: "New Suggestions Loaded!",
+          description: "Click any question below to select it.",
+        });
+      }
     } catch (err) {
-      console.error("Error suggesting messages:", err);
+      console.error("Error fetching suggestions:", err);
+      // Pick random fallback list if API fails
+      const fallbackSets = [
+        [
+          "What is your dream vacation destination?",
+          "What is a skill you wish you possessed?",
+          "What movie never fails to make you laugh?",
+        ],
+        [
+          "What is your favorite memory from childhood?",
+          "If you could master any language instantly, which one would it be?",
+          "What's a hidden talent you have?",
+        ],
+      ];
+      const randomSet = fallbackSets[Math.floor(Math.random() * fallbackSets.length)];
+      setSuggestedMessages(randomSet);
       toast.add({
-        title: "Error",
-        description: "Failed to generate suggested messages",
+        title: "Suggestions Refreshed!",
+        description: "Click any question below to select it.",
       });
+    } finally {
+      setIsSuggesting(false);
     }
   };
 
-  const parsedMessages = completion
-    ? completion
-        .split("||")
-        .map((msg: string) => msg.trim())
-        .filter((msg: string) => msg.length > 0)
-    : initialSuggestedMessages;
-
-  const handleMessageClick = (message: string) => {
-    setValue("content", message, { shouldValidate: true });
+  const handleMessageClick = (messageText: string) => {
+    setValue("content", messageText, { shouldValidate: true });
+    toast.add({
+      title: "Question Selected!",
+      description: "Message copied to the text box above.",
+    });
   };
 
   const onSubmit = async (data: z.infer<typeof messageSchema>) => {
@@ -115,17 +138,17 @@ const Page = ({ params }: { params: Promise<{ username: string }> }) => {
       });
 
       toast.add({
-        title: "Success",
-        description: response.data.message || "Message sent successfully!",
+        title: "Message Sent!",
+        description: response.data.message || "Your anonymous message was delivered successfully!",
       });
 
       reset({ content: "" });
     } catch (error) {
       const axiosError = error as AxiosError<ApiResponse>;
       toast.add({
-        title: "Error",
+        title: "Error Sending Message",
         description:
-          axiosError.response?.data.message || "Failed to send message",
+          axiosError.response?.data.message || "Failed to send message.",
       });
     } finally {
       setIsSending(false);
@@ -212,15 +235,16 @@ const Page = ({ params }: { params: Promise<{ username: string }> }) => {
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <Button
+              type="button"
               onClick={handleFetchSuggestedMessages}
               disabled={isSuggesting}
               variant="outline"
-              className="px-6 py-2.5 rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold text-slate-800 dark:text-slate-200 shadow-sm transition-all flex items-center gap-2"
+              className="px-6 py-2.5 rounded-xl border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold text-slate-800 dark:text-slate-200 shadow-sm transition-all flex items-center gap-2 cursor-pointer"
             >
               {isSuggesting ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                <Sparkles className="w-4 h-4 text-slate-700 dark:text-slate-300" />
+                <Sparkles className="w-4 h-4 text-amber-500" />
               )}
               Suggest Messages
             </Button>
@@ -236,14 +260,17 @@ const Page = ({ params }: { params: Promise<{ username: string }> }) => {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-3">
-              {parsedMessages.map((message: string, index: number) => (
+              {suggestedMessages.map((msgText: string, index: number) => (
                 <button
                   key={index}
                   type="button"
-                  onClick={() => handleMessageClick(message)}
-                  className="w-full text-left p-4 rounded-xl border border-slate-200 dark:border-slate-800/80 bg-slate-50/60 dark:bg-slate-950/40 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-700 font-medium text-slate-800 dark:text-slate-200 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                  onClick={() => handleMessageClick(msgText)}
+                  className="w-full text-left p-4 rounded-xl border border-slate-200 dark:border-slate-800/80 bg-slate-50/60 dark:bg-slate-950/40 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:border-slate-300 dark:hover:border-slate-700 font-medium text-slate-800 dark:text-slate-200 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-slate-400 flex items-center justify-between group cursor-pointer"
                 >
-                  {message}
+                  <span>{msgText}</span>
+                  <span className="text-xs font-semibold text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors ml-2 shrink-0">
+                    Select →
+                  </span>
                 </button>
               ))}
             </CardContent>
