@@ -26,7 +26,6 @@ export async function POST(request: Request) {
             { status: 400 }
           );
         }
-        // If it's the SAME email and username, we can let them update/continue below
       }
     }
 
@@ -42,10 +41,10 @@ export async function POST(request: Request) {
       } else {
         // User exists with this email but isn't verified -> Update their code/password
         const hashedPassword = await bcrypt.hash(password, 10);
-        existingUserByEmail.username = username; // Update username if they changed it
+        existingUserByEmail.username = username;
         existingUserByEmail.password = hashedPassword;
         existingUserByEmail.verifyCode = verifyCode;
-        existingUserByEmail.verifyCodeExpiry = new Date(Date.now() + 3600000); // 1 hour
+        existingUserByEmail.verifyCodeExpiry = new Date(Date.now() + 3600000);
         await existingUserByEmail.save();
       }
     } else {
@@ -67,7 +66,7 @@ export async function POST(request: Request) {
       await newUser.save();
     }
 
-    // Send verification email execution block - correct parameter order: (email, username, verifyCode)
+    // Send verification email
     const emailResponse = await sendVerificationEmail(
       email,
       username,
@@ -76,7 +75,10 @@ export async function POST(request: Request) {
     
     if (!emailResponse.success) {
       return Response.json(
-        { success: false, message: "Error sending verification email." },
+        {
+          success: false,
+          message: emailResponse.message || "Error sending verification email.",
+        },
         { status: 500 },
       );
     }

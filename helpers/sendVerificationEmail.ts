@@ -8,15 +8,26 @@ export async function sendVerificationEmail(
   verifyCode: string,
 ): Promise<ApiResponse> {
   try {
-    await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from: "onboarding@resend.dev",
       to: email.trim(),
       subject: "Mystery Message | Verification Code",
       react: VerificationEmail({ username, otp: verifyCode }),
     });
+
+    if (error) {
+      console.error("[Resend API Error]:", error);
+      return {
+        success: false,
+        message:
+          error.message ||
+          "Failed to send verification email. Resend allowed recipient limit reached.",
+      };
+    }
+
     return {
       success: true,
-      message: "successfully send verification email to user.",
+      message: "Successfully sent verification email to user.",
     };
   } catch (emailError) {
     console.error("Error in sending verification email", emailError);
