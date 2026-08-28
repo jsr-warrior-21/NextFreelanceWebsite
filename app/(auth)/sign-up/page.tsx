@@ -15,7 +15,7 @@ import { Controller } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, MessageSquare, UserPlus } from "lucide-react";
 
 export default function Page() {
   const [username, setUsername] = useState("");
@@ -24,10 +24,9 @@ export default function Page() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const debounced = useDebounceCallback(setUsername, 300);
-
   const router = useRouter();
 
-  const form = useForm({
+  const form = useForm<z.infer<typeof signUpSchema>>({
     resolver: zodResolver(signUpSchema),
     defaultValues: {
       username: "",
@@ -45,19 +44,21 @@ export default function Page() {
 
       try {
         const response = await axios.get(
-          `/api/check-username-unique?username=${username}`,
+          `/api/check-username-unique?username=${username}`
         );
         setUsernameMessage(response.data?.message);
       } catch (error) {
         const axiosError = error as AxiosError<ApiResponse>;
         setUsernameMessage(
-          axiosError.response?.data?.message ?? "Error checking username.",
+          axiosError.response?.data?.message ?? "Error checking username."
         );
       } finally {
         setIsCheckingUsername(false);
       }
     };
-    checkUsernameUnique();
+    if (username.trim().length >= 2) {
+      checkUsernameUnique();
+    }
   }, [username]);
 
   const onSubmit = async (data: z.infer<typeof signUpSchema>) => {
@@ -67,50 +68,66 @@ export default function Page() {
 
       toast.add({
         title: "Success",
-        description: response.data.message,
+        description: response.data.message || "Account created! Please verify your email.",
       });
 
-      router.replace(`/verfiy/${username}`);
-      setIsSubmitting(false);
+      router.replace(`/verfiy/${data.username}`);
     } catch (error) {
       console.error("Error in sign-up of user", error);
       const axiosError = error as AxiosError<ApiResponse>;
       const errorMessage = axiosError.response?.data.message;
       toast.add({
-        title: "signup failed",
-        description: errorMessage,
+        title: "Signup Failed",
+        description: errorMessage || "Failed to create account.",
       });
+    } finally {
       setIsSubmitting(false);
     }
   };
+
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-100">
-      <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-md">
-        <div className="text-center">
-          <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl mb-6">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col justify-between py-10 px-4 sm:px-6 lg:px-8">
+      {/* Top Bar with Home Link */}
+      <div className="max-w-md w-full mx-auto flex items-center justify-between">
+        <Link
+          href="/"
+          className="inline-flex items-center text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors gap-1.5"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Home
+        </Link>
+        <Link href="/" className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-white">
+          <MessageSquare className="w-5 h-5" />
+          <span>Mystery Message</span>
+        </Link>
+      </div>
+
+      {/* Main Card */}
+      <div className="w-full max-w-md mx-auto my-auto p-8 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 space-y-6">
+        <div className="text-center space-y-2">
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
             Join Mystery Message
           </h1>
-          <p className="mb-4">Sign up to start your anonymous adventure</p>
+          <p className="text-sm font-normal text-slate-500 dark:text-slate-400">
+            Create an account to start your anonymous adventure
+          </p>
         </div>
 
-        {/* form start here */}
-
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
           <Controller
             name="username"
             control={form.control}
             render={({ field, fieldState }) => (
               <Field data-invalid={!!fieldState.error || undefined}>
-                <FieldLabel>Username</FieldLabel>
-
-                {/* Container for input and message layout */}
-                <div className="flex flex-col gap-2 w-full">
-                  {/* Relative wrapper ONLY for the Input and the Loader Spinner */}
+                <FieldLabel className="text-slate-700 dark:text-slate-300 font-medium text-sm">
+                  Username
+                </FieldLabel>
+                <div className="flex flex-col gap-1.5 w-full">
                   <div className="relative flex items-center w-full">
                     <Input
                       type="text"
-                      placeholder="username"
-                      className="pr-10 w-full"
+                      placeholder="johndoe"
+                      className="pr-10 w-full rounded-xl border-slate-200 dark:border-slate-800"
                       {...field}
                       onChange={(e) => {
                         field.onChange(e);
@@ -119,25 +136,23 @@ export default function Page() {
                     />
                     {isCheckingUsername && (
                       <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
                       </div>
                     )}
                   </div>
 
-                  {/* Status message placed below the input with a modern UI animation finish */}
                   {usernameMessage && (
                     <p
-                      className={`text-xs sm:text-sm font-medium transition-all duration-200 ${
+                      className={`text-xs font-medium ${
                         usernameMessage === "Username is unique"
                           ? "text-emerald-600 dark:text-emerald-400"
-                          : "text-destructive"
+                          : "text-red-500"
                       }`}
                     >
                       {usernameMessage}
                     </p>
                   )}
                 </div>
-
                 <FieldError>{fieldState.error?.message}</FieldError>
               </Field>
             )}
@@ -148,8 +163,15 @@ export default function Page() {
             control={form.control}
             render={({ field, fieldState }) => (
               <Field data-invalid={!!fieldState.error || undefined}>
-                <FieldLabel>Email</FieldLabel>
-                <Input type="email" placeholder="email" {...field} />
+                <FieldLabel className="text-slate-700 dark:text-slate-300 font-medium text-sm">
+                  Email
+                </FieldLabel>
+                <Input
+                  type="email"
+                  placeholder="you@example.com"
+                  className="rounded-xl border-slate-200 dark:border-slate-800"
+                  {...field}
+                />
                 <FieldError>{fieldState.error?.message}</FieldError>
               </Field>
             )}
@@ -160,34 +182,55 @@ export default function Page() {
             control={form.control}
             render={({ field, fieldState }) => (
               <Field data-invalid={!!fieldState.error || undefined}>
-                <FieldLabel>Password</FieldLabel>
-                <Input type="password" placeholder="password" {...field} />
+                <FieldLabel className="text-slate-700 dark:text-slate-300 font-medium text-sm">
+                  Password
+                </FieldLabel>
+                <Input
+                  type="password"
+                  placeholder="••••••••"
+                  className="rounded-xl border-slate-200 dark:border-slate-800"
+                  {...field}
+                />
                 <FieldError>{fieldState.error?.message}</FieldError>
               </Field>
             )}
           />
 
-          <Button type="submit" disabled={isSubmitting}>
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
+          >
             {isSubmitting ? (
               <>
-                <Loader2 className="mr-2 h-4 animate-spin" />
-                Please wait
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Creating account...
               </>
             ) : (
-              "Signup"
+              <>
+                <UserPlus className="w-4 h-4" />
+                Sign Up
+              </>
             )}
           </Button>
         </form>
 
-        <div className="text-center mt-4">
-          <p>
-            Already a member?{""}
-            <Link href="/sign-in" className="text-blue-600 hover:text-blue-800">
-              Sign in
+        <div className="text-center pt-2 border-t border-slate-100 dark:border-slate-800">
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+            Already a member?{" "}
+            <Link
+              href="/sign-in"
+              className="font-semibold text-slate-900 dark:text-white hover:underline ml-1"
+            >
+              Sign In
             </Link>
           </p>
         </div>
       </div>
+
+      <footer className="text-center text-xs font-medium text-slate-400">
+        © 2026 Mystery Message
+      </footer>
     </div>
   );
 }
