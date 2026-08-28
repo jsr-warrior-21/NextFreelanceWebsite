@@ -45,7 +45,7 @@ export async function POST(request: Request) {
         existingUserByEmail.username = username; // Update username if they changed it
         existingUserByEmail.password = hashedPassword;
         existingUserByEmail.verifyCode = verifyCode;
-        existingUserByEmail.verifyCodeExpiry = new Date(Date.now() + 3600000); // 1 hour (fixed typo from 360000)
+        existingUserByEmail.verifyCodeExpiry = new Date(Date.now() + 3600000); // 1 hour
         await existingUserByEmail.save();
       }
     } else {
@@ -67,10 +67,10 @@ export async function POST(request: Request) {
       await newUser.save();
     }
 
-    // Send verification email execution block
+    // Send verification email execution block - correct parameter order: (email, username, verifyCode)
     const emailResponse = await sendVerificationEmail(
-      username,
       email,
+      username,
       verifyCode,
     );
     
