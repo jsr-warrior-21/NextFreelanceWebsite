@@ -9,49 +9,65 @@ export async function GET(request: Request) {
   await dbConnect();
   const session = await getServerSession(authOptions);
   const user: User = session?.user as User;
+
   if (!session || !session.user) {
     return Response.json(
       {
         success: false,
         message: "User not authenticated",
       },
-      { status: 401 },
+      { status: 401 }
     );
   }
 
   const userId = new mongoose.Types.ObjectId(user._id);
+
   try {
-    const user = await UserModel.aggregate([
-      { $match: { id: userId } },
+    const userResult = await UserModel.aggregate([
+      { $match: { _id: userId } },
       { $unwind: "$messages" },
-      { $sort: { "messages:createdAt": -1 } },
+      { $sort: { "messages.createdAt": -1 } },
       { $group: { _id: "$_id", messages: { $push: "$messages" } } },
     ]);
 
-    if (!user || user.length === 0) {
+    if (!userResult || userResult.length === 0) {
+      // Check if user actually exists
+      const foundUser = await UserModel.findById(userId);
+      if (!foundUser) {
+        return Response.json(
+          {
+            success: false,
+            message: "User not found",
+          },
+          { status: 404 }
+        );
+      }
+
+      // User exists but has no messages yet -> return empty array with status 200
       return Response.json(
         {
-          success: false,
-          message: "Not user found and messages",
+          success: true,
+          messages: [],
         },
-        { status: 401 },
+        { status: 200 }
       );
     }
+
     return Response.json(
       {
         success: true,
-        messages: user[0].messages,
+        messages: userResult[0].messages,
       },
-      { status: 200 },
+      { status: 200 }
     );
   } catch (error) {
-    console.log("Not able to fetch whole messages", error);
+    console.error("Error fetching messages:", error);
     return Response.json(
       {
         success: false,
-        message: "Not able to fetch whole message.",
+        message: "Error fetching messages",
       },
-      { status: 400 },
+      { status: 500 }
     );
   }
 }

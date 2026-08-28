@@ -31,6 +31,9 @@ const Page = () => {
 
   const form = useForm({
     resolver: zodResolver(acceptMessageSchema),
+    defaultValues: {
+      acceptMessage: true,
+    },
   });
 
   const { register, watch, setValue } = form;
@@ -40,7 +43,7 @@ const Page = () => {
     setIsSwitchLoading(true);
     try {
       const response = await axios.get("/api/accept-message");
-      setValue("acceptMessage", response.data.isAcceptingMessage);
+      setValue("acceptMessage", Boolean(response.data.isAcceptingMessage));
     } catch (error) {
       const axiosError = error as AxiosError<ApiResponse>;
       toast.add({
@@ -228,7 +231,7 @@ const Page = () => {
         <div className="flex items-center gap-3">
           <Switch
             {...register("acceptMessage")}
-            checked={acceptMessages}
+            checked={Boolean(acceptMessages)}
             onCheckedChange={handleSwitchChange}
             disabled={isSwitchLoading}
           />
